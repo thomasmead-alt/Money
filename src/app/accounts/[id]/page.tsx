@@ -1,0 +1,180 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { db } from "@/lib/db";
+import { Card, Stat } from "@/components/Card";
+import { Money } from "@/components/Money";
+
+export const dynamic = "force-dynamic";
+
+export default async function AccountPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const account = await db.account.findUnique({ where: { id } });
+  if (!account) notFound();
+
+  const [transactions, importBatches, offerCount, recurringCount] =
+    await Promise.all([
+      db.transaction.findMany({
+        where: { accountId: id },
+        orderBy: { date: "desc" },
+        take: 50,
+        include: { category: true },
+      }),
+      db.importBatch.findMany({
+        where: { accountId: id },
+        orderBy: { importedAt: "desc" },
+        take: 5,
+      }),
+      db.creditCardOffer.count({ where: { accountId: id, status: "ACTIVE" } }),
+      db.recurringExpense.count({ where: { accountId: id, isActive: true } }),
+    ]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <Link
+            href="/accounts"
+            className="text-xs text-(--color-muted-foreground) hover:underline"
+          >
+            ← All accounts
+          </Link>
+          <h1 className="text-2xl font-semibold mt-1">{account.name}</h1>
+          <p className="text-sm text-(--color-muted-foreground)">
+            {account.institution ?? "—"} ·{" "}
+            {account.type.replace("_", " ").toLowerCase()} · {account.provider}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Link
+            href={`/accounts/${account.id}/import`}
+            className="inline-flex items-center rounded-md bg-(--color-accent) text-(--color-accent-foreground) px-3 py-1.5 text-sm font-medium hover:opacity-90"
+          >
+            Import statement
+          </Link>
+          <Link
+            href={`/accounts/${account.id}/transactions/new`}
+            className="inline-flex items-center rounded-md border border-(--color-border) px-3 py-1.5 text-sm font-medium hover:bg-(--color-muted)"
+          >
+            Add transaction
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-4">
+        <Card>
+          <Stat
+            label="Current balance"
+            value={<Money pence={account.currentBalance} />}
+            tone={account.currentBalance >= 0 ? "positive" : "negative"}
+          />
+        </Card>
+        <Card>
+          <Stat
+            label="Opening balance"
+            value={<Money pence={account.openingBalance} />}
+          />
+        </Card>
+        {account.creditLimit != null ? (
+          <Card>
+            <Stat
+              label="Credit limit"
+              value={<Money pence={account.creditLimit} />}
+              hint={`${recurringCount} recurring · ${offerCount} active offers`}
+            />
+          </Card>
+        ) : (
+          <Card>
+            <Stat
+              label="Transactions"
+              value={transactions.length === 50 ? "50+" : transactions.length}
+              hint={`${recurringCount} recurring linked`}
+            />
+          </Card>
+        )}
+      </div>
+
+      <Card title="Transactions">
+        {transactions.length === 0 ? (
+          <p className="text-sm text-(--color-muted-foreground)">
+            No transactions yet.{" "}
+            <Link
+              href={`/accounts/${account.id}/import`}
+              className="text-(--color-accent) hover:underline"
+            >
+              Import a statement
+            </Link>{" "}
+            or{" "}
+            <Link
+              href={`/accounts/${account.id}/transactions/new`}
+              className="text-(--color-accent) hover:underline"
+            >
+              add one manually
+            </Link>
+            .
+          </p>
+        ) : (
+          <ul className="divide-y divide-(--color-border) -my-2">
+            {transactions.map((t) => (
+              <li
+                key={t.id}
+                className="py-2 flex items-center justify-between gap-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{t.description}</div>
+                  <div className="text-xs text-(--color-muted-foreground)">
+                    {t.date.toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                    {t.category ? ` · ${t.category.name}` : ""}
+                    {t.status === "PENDING" ? " · pending" : ""}
+                  </div>
+                </div>
+                <Money
+                  pence={t.amount}
+                  colorBySign
+                  className="text-sm font-medium"
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {importBatches.length > 0 && (
+        <Card title="Recent imports">
+          <ul className="divide-y divide-(--color-border) -my-2 text-sm">
+            {importBatches.map((b) => (
+              <li
+                key={b.id}
+                className="py-2 flex items-center justify-between"
+              >
+                <div>
+                  <div className="font-medium">
+                    {b.filename ?? "Manual import"}
+                  </div>
+                  <div className="text-xs text-(--color-muted-foreground)">
+                    {b.source} ·{" "}
+                    {b.importedAt.toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </div>
+                </div>
+                <div className="text-xs text-(--color-muted-foreground) tabular-nums">
+                  {b.rowCount} new · {b.duplicateCount} dupes
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+    </div>
+  );
+}

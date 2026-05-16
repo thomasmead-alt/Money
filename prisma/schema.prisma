@@ -1,0 +1,397 @@
+// UK Personal Finance Dashboard — data model
+// See plan: /root/.claude/plans/new-app-take-information-warm-peacock.md
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// =====================
+// Accounts & balances
+// =====================
+
+enum AccountType {
+  CURRENT
+  SAVINGS
+  CREDIT_CARD
+  MORTGAGE
+}
+
+enum Provider {
+  MANUAL
+  CSV
+  OFX
+  GOCARDLESS
+}
+
+model Account {
+  id                 String      @id @default(cuid())
+  name               String
+  type               AccountType
+  institution        String?
+  currency           String      @default("GBP")
+  openingBalance     Int         @default(0) // pence, signed
+  currentBalance     Int         @default(0) // pence, cached
+  creditLimit        Int? // pence (credit cards only)
+  provider           Provider    @default(MANUAL)
+  externalId         String?
+  providerMeta       String? // JSON blob, free-form per provider
+  includeInNetWorth  Boolean     @default(true)
+  minBalanceAlert    Int? // pence; forecast warns below this
+  archivedAt         DateTime?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  transactions       Transaction[]
+  recurringExpenses  RecurringExpense[]
+  scheduledOneOffs   ScheduledOneOff[]
+  creditCardOffers   CreditCardOffer[]
+  mortgageDetails    MortgageDetails?
+  balanceSnapshots   BalanceSnapshot[]
+  importBatches      ImportBatch[]
+
+  @@index([type])
+}
+
+model BalanceSnapshot {
+  id        String   @id @default(cuid())
+  accountId String
+  date      DateTime
+  balance   Int // pence
+  createdAt DateTime @default(now())
+
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, date])
+  @@index([accountId, date])
+}
+
+// =====================
+// Transactions
+// =====================
+
+enum TransactionStatus {
+  PENDING
+  CLEARED
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  accountId       String
+  date            DateTime
+  postedDate      DateTime?
+  amount          Int // pence, signed (negative = outflow)
+  description     String
+  merchant        String?
+  categoryId      String?
+  status          TransactionStatus @default(CLEARED)
+  externalId      String? // FITID or hash for dedupe
+  importBatchId   String?
+  transferGroupId String? // links two sides of an internal transfer
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  account         Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category        Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  importBatch     ImportBatch?      @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@unique([accountId, externalId])
+  @@index([accountId, date])
+  @@index([categoryId])
+  @@index([transferGroupId])
+}
+
+// =====================
+// Categories & rules
+// =====================
+
+enum CategoryKind {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+model Category {
+  id           String         @id @default(cuid())
+  name         String
+  parentId     String?
+  kind         CategoryKind   @default(EXPENSE)
+  colour       String? // hex
+  icon         String?
+  isSystem     Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+
+  parent       Category?      @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Category[]     @relation("CategoryHierarchy")
+  transactions Transaction[]
+  rules        CategoryRule[]
+  recurring    RecurringExpense[]
+  scheduled    ScheduledOneOff[]
+  budgetLines  BudgetLine[]
+
+  @@unique([name, parentId])
+  @@index([kind])
+}
+
+enum RuleMatchType {
+  CONTAINS
+  REGEX
+  EXACT
+  STARTS_WITH
+}
+
+model CategoryRule {
+  id         String         @id @default(cuid())
+  matchType  RuleMatchType  @default(CONTAINS)
+  pattern    String
+  field      String         @default("description") // description | merchant
+  categoryId String
+  priority   Int            @default(100)
+  isActive   Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+
+  category   Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([priority])
+}
+
+// =====================
+// Recurring & scheduled
+// =====================
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  ANNUALLY
+}
+
+model RecurringExpense {
+  id           String    @id @default(cuid())
+  name         String
+  amount       Int // pence, signed (outflow negative)
+  accountId    String
+  categoryId   String?
+  frequency    Frequency
+  interval     Int       @default(1) // every N units
+  dayOfMonth   Int?
+  dayOfWeek    Int? // 0=Sun..6=Sat
+  monthOfYear  Int? // 1..12 (for ANNUALLY)
+  startDate    DateTime
+  endDate      DateTime?
+  nextDue      DateTime
+  lastPaid     DateTime?
+  isCommitted  Boolean   @default(true) // counts toward clear surplus
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  account      Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([nextDue])
+  @@index([accountId])
+}
+
+model ScheduledOneOff {
+  id          String    @id @default(cuid())
+  name        String
+  date        DateTime
+  amount      Int // pence, signed
+  accountId   String
+  categoryId  String?
+  isCommitted Boolean   @default(true)
+  paidAt      DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+}
+
+// =====================
+// Credit card offers
+// =====================
+
+enum CreditCardOfferType {
+  BALANCE_TRANSFER
+  PURCHASE
+  MONEY_TRANSFER
+}
+
+enum CreditCardOfferStatus {
+  ACTIVE
+  EXPIRED
+  PAID_OFF
+}
+
+model CreditCardOffer {
+  id                 String                @id @default(cuid())
+  accountId          String
+  offerType          CreditCardOfferType
+  description        String?
+  amount             Int                   @default(0) // pence used / on promo
+  feePercent         Float                 @default(0)
+  feeAmount          Int                   @default(0) // pence
+  promoApr           Float                 @default(0)
+  promoStartDate     DateTime
+  promoEndDate       DateTime
+  postPromoApr       Float                 @default(0)
+  minPaymentPercent  Float                 @default(2.5)
+  minPaymentFloor    Int                   @default(2500) // pence (£25)
+  status             CreditCardOfferStatus @default(ACTIVE)
+  notes              String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  account            Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([promoEndDate])
+}
+
+// =====================
+// Mortgage
+// =====================
+
+enum MortgageRateType {
+  FIXED
+  TRACKER
+  SVR
+}
+
+model MortgageDetails {
+  id                String           @id @default(cuid())
+  accountId         String           @unique
+  originalPrincipal Int // pence
+  currentRate       Float
+  rateType          MortgageRateType @default(FIXED)
+  rateEndDate       DateTime?
+  termMonths        Int
+  startDate         DateTime
+  monthlyPayment    Int // pence
+  paymentDay        Int              @default(1)
+  notes             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  account           Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+// =====================
+// Budgets
+// =====================
+
+enum BudgetHorizon {
+  PAYDAY
+  MONTH
+  CUSTOM
+}
+
+model BudgetPeriod {
+  id          String        @id @default(cuid())
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  horizonType BudgetHorizon @default(MONTH)
+  createdAt   DateTime      @default(now())
+
+  lines       BudgetLine[]
+
+  @@index([startDate, endDate])
+}
+
+model BudgetLine {
+  id             String       @id @default(cuid())
+  budgetPeriodId String
+  categoryId     String
+  plannedAmount  Int // pence, positive
+
+  budgetPeriod   BudgetPeriod @relation(fields: [budgetPeriodId], references: [id], onDelete: Cascade)
+  category       Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([budgetPeriodId, categoryId])
+}
+
+// =====================
+// Forecast scenarios
+// =====================
+
+model ForecastScenario {
+  id          String             @id @default(cuid())
+  name        String
+  isBaseline  Boolean            @default(false)
+  notes       String?
+  createdAt   DateTime           @default(now())
+
+  overrides   ForecastOverride[]
+}
+
+enum ForecastOverrideKind {
+  ADD
+  REMOVE
+  MODIFY
+}
+
+enum ForecastOverrideTargetType {
+  RECURRING
+  ONEOFF
+  MORTGAGE
+}
+
+model ForecastOverride {
+  id         String                    @id @default(cuid())
+  scenarioId String
+  kind       ForecastOverrideKind
+  targetType ForecastOverrideTargetType
+  targetId   String?
+  payload    String // JSON
+
+  scenario   ForecastScenario          @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioId])
+}
+
+// =====================
+// Imports
+// =====================
+
+enum ImportSource {
+  CSV
+  OFX
+  GOCARDLESS
+  MANUAL
+}
+
+model ImportBatch {
+  id             String        @id @default(cuid())
+  accountId      String
+  source         ImportSource
+  filename       String?
+  importedAt     DateTime      @default(now())
+  rowCount       Int           @default(0)
+  duplicateCount Int           @default(0)
+  rawHash        String? // sha256 of source bytes, dedupes re-imports
+
+  account        Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+
+  @@index([accountId])
+}
+
+// =====================
+// Settings (key/value)
+// =====================
+
+model Setting {
+  key       String   @id
+  value     String // JSON
+  updatedAt DateTime @updatedAt
+}
