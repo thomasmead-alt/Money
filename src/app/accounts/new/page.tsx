@@ -17,6 +17,16 @@ async function createAccount(formData: FormData) {
     throw new Error("Account name is required");
   }
 
+  const MANUAL_VALUATION_TYPES: AccountType[] = [
+    "INVESTMENT",
+    "PENSION",
+    "PROPERTY",
+    "VEHICLE",
+    "OTHER_ASSET",
+    "OTHER_LIABILITY",
+    "LOAN",
+  ];
+
   const account = await db.account.create({
     data: {
       name,
@@ -25,6 +35,7 @@ async function createAccount(formData: FormData) {
       openingBalance,
       currentBalance: openingBalance,
       creditLimit,
+      lastValuedAt: MANUAL_VALUATION_TYPES.includes(type) ? new Date() : null,
       provider: "MANUAL",
     },
   });
@@ -48,10 +59,23 @@ export default function NewAccountPage() {
           </Field>
           <Field label="Type" htmlFor="type">
             <select id="type" name="type" required className="input" defaultValue="CURRENT">
-              <option value="CURRENT">Current account</option>
-              <option value="SAVINGS">Savings</option>
-              <option value="CREDIT_CARD">Credit card</option>
-              <option value="MORTGAGE">Mortgage</option>
+              <optgroup label="Spending">
+                <option value="CURRENT">Current account</option>
+                <option value="SAVINGS">Savings</option>
+              </optgroup>
+              <optgroup label="Debt">
+                <option value="CREDIT_CARD">Credit card</option>
+                <option value="MORTGAGE">Mortgage</option>
+                <option value="LOAN">Loan / BNPL / car finance</option>
+                <option value="OTHER_LIABILITY">Other liability</option>
+              </optgroup>
+              <optgroup label="Assets">
+                <option value="INVESTMENT">Investment (ISA / GIA / SIPP)</option>
+                <option value="PENSION">Pension</option>
+                <option value="PROPERTY">Property</option>
+                <option value="VEHICLE">Vehicle</option>
+                <option value="OTHER_ASSET">Other asset</option>
+              </optgroup>
             </select>
           </Field>
           <Field label="Institution" htmlFor="institution">

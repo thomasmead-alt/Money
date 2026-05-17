@@ -32,18 +32,34 @@ export default async function DashboardPage() {
     (a) => a.type === "CURRENT" || a.type === "SAVINGS",
   );
   const debtAccounts = accounts.filter(
-    (a) => a.type === "CREDIT_CARD" || a.type === "MORTGAGE",
+    (a) =>
+      a.type === "CREDIT_CARD" ||
+      a.type === "MORTGAGE" ||
+      a.type === "LOAN" ||
+      a.type === "OTHER_LIABILITY",
+  );
+  const investedAccounts = accounts.filter(
+    (a) =>
+      a.type === "INVESTMENT" ||
+      a.type === "PENSION" ||
+      a.type === "PROPERTY" ||
+      a.type === "VEHICLE" ||
+      a.type === "OTHER_ASSET",
   );
 
   const liquid = liquidAccounts.reduce((s, a) => s + a.currentBalance, 0);
   const debts = debtAccounts.reduce((s, a) => s + a.currentBalance, 0);
+  const invested = investedAccounts.reduce(
+    (s, a) => s + a.currentBalance,
+    0,
+  );
   const netWorth = accounts
     .filter((a) => a.includeInNetWorth)
     .reduce((s, a) => s + a.currentBalance, 0);
 
   return (
     <div className="space-y-6">
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <Stat
             label="Net worth"
@@ -56,15 +72,25 @@ export default async function DashboardPage() {
           <Stat
             label="Liquid cash"
             value={<Money pence={liquid} />}
-            hint={`${liquidAccounts.length} spending / savings accounts`}
+            hint={`${liquidAccounts.length} spending / savings`}
           />
         </Card>
+        {investedAccounts.length > 0 && (
+          <Card>
+            <Stat
+              label="Invested & owned"
+              value={<Money pence={invested} />}
+              tone="positive"
+              hint={`${investedAccounts.length} asset${investedAccounts.length === 1 ? "" : "s"}`}
+            />
+          </Card>
+        )}
         <Card>
           <Stat
             label="Total debts"
             value={<Money pence={debts} />}
             tone={debts < 0 ? "negative" : "neutral"}
-            hint={`${debtAccounts.length} credit & mortgage accounts`}
+            hint={`${debtAccounts.length} liabilit${debtAccounts.length === 1 ? "y" : "ies"}`}
           />
         </Card>
         <Card>
@@ -72,7 +98,7 @@ export default async function DashboardPage() {
             label="Clear surplus"
             value={<Money pence={surplus.surplus} />}
             tone={surplus.surplus >= 0 ? "positive" : "negative"}
-            hint={`After ${surplus.upcomingCount} committed item${
+            hint={`After ${surplus.upcomingCount} item${
               surplus.upcomingCount === 1 ? "" : "s"
             } until ${surplus.horizonEnd.toLocaleDateString("en-GB", {
               day: "numeric",

@@ -10,6 +10,13 @@ const TYPE_LABEL: Record<string, string> = {
   SAVINGS: "Savings",
   CREDIT_CARD: "Credit cards",
   MORTGAGE: "Mortgages",
+  INVESTMENT: "Investments",
+  PENSION: "Pensions",
+  PROPERTY: "Property",
+  VEHICLE: "Vehicles",
+  LOAN: "Loans",
+  OTHER_ASSET: "Other assets",
+  OTHER_LIABILITY: "Other liabilities",
 };
 
 export default async function AccountsPage() {

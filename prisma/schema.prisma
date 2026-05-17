@@ -19,6 +19,15 @@ enum AccountType {
   SAVINGS
   CREDIT_CARD
   MORTGAGE
+  // Assets — positive currentBalance contributes to net worth
+  INVESTMENT // ISA, GIA, SIPP investment account
+  PENSION    // workplace pension pot
+  PROPERTY   // owned property at market value
+  VEHICLE    // car / bike at market value
+  // Liabilities — negative currentBalance reduces net worth
+  LOAN       // personal loan, student loan, BNPL, car finance
+  OTHER_ASSET
+  OTHER_LIABILITY
 }
 
 enum Provider {
@@ -37,6 +46,7 @@ model Account {
   openingBalance     Int         @default(0) // pence, signed
   currentBalance     Int         @default(0) // pence, cached
   creditLimit        Int? // pence (credit cards only)
+  lastValuedAt       DateTime? // for manual-valuation accounts (property, pension, investment)
   provider           Provider    @default(MANUAL)
   externalId         String?
   providerMeta       String? // JSON blob, free-form per provider
@@ -54,6 +64,7 @@ model Account {
   balanceSnapshots   BalanceSnapshot[]
   importBatches      ImportBatch[]
   goals              Goal[]
+  rewardRules        CardRewardRule[]
 
   @@index([type])
 }
@@ -135,6 +146,7 @@ model Category {
   recurring    RecurringExpense[]
   scheduled    ScheduledOneOff[]
   budgetLines  BudgetLine[]
+  rewardRules  CardRewardRule[]
 
   @@unique([name, parentId])
   @@index([kind])
@@ -257,6 +269,29 @@ model CreditCardOffer {
 
   @@index([accountId])
   @@index([promoEndDate])
+}
+
+// =====================
+// Rewards / cashback
+// =====================
+
+model CardRewardRule {
+  id            String    @id @default(cuid())
+  accountId     String // credit card
+  categoryId    String? // nullable = applies to everything
+  ratePercent   Float // cashback or points-as-percent
+  description   String? // e.g. "Amex Gold 4x on groceries"
+  monthlyCapPence Int? // cap on rewards earned per month (in pence)
+  expiresAt     DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  account       Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([categoryId])
 }
 
 // =====================

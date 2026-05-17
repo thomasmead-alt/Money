@@ -140,6 +140,53 @@ async function main() {
     },
   });
 
+  // Assets (manual valuation)
+  const home = await db.account.create({
+    data: {
+      name: "Home (market value)",
+      type: "PROPERTY",
+      institution: "—",
+      openingBalance: GBP(385000),
+      currentBalance: GBP(385000),
+      provider: "MANUAL",
+      lastValuedAt: subMonths(new Date(), 1),
+    },
+  });
+  const sipp = await db.account.create({
+    data: {
+      name: "Vanguard SIPP",
+      type: "PENSION",
+      institution: "Vanguard",
+      openingBalance: GBP(42500),
+      currentBalance: GBP(42500),
+      provider: "MANUAL",
+      lastValuedAt: subMonths(new Date(), 1),
+    },
+  });
+  const isa = await db.account.create({
+    data: {
+      name: "Stocks & Shares ISA",
+      type: "INVESTMENT",
+      institution: "Trading 212",
+      openingBalance: GBP(18750),
+      currentBalance: GBP(18750),
+      provider: "MANUAL",
+      lastValuedAt: subMonths(new Date(), 1),
+    },
+  });
+  await db.account.create({
+    data: {
+      name: "Klarna pay-in-3",
+      type: "LOAN",
+      institution: "Klarna",
+      openingBalance: GBP(-120),
+      currentBalance: GBP(-120),
+      provider: "MANUAL",
+    },
+  });
+  // suppress unused-var lints for new account vars
+  void home; void sipp; void isa;
+
   // Mortgage details
   await db.mortgageDetails.create({
     data: {
@@ -184,6 +231,33 @@ async function main() {
       postPromoApr: 22.9,
       status: "ACTIVE",
     },
+  });
+
+  // Reward / cashback rules
+  await db.cardRewardRule.createMany({
+    data: [
+      {
+        accountId: barclayCard.id,
+        categoryId: groceries.id,
+        ratePercent: 5,
+        description: "5% groceries (3 months intro)",
+        monthlyCapPence: GBP(15),
+      },
+      {
+        accountId: halifaxCard.id,
+        categoryId: null,
+        ratePercent: 0.5,
+        description: "0.5% on everything",
+        monthlyCapPence: null,
+      },
+      {
+        accountId: barclayCard.id,
+        categoryId: eatingOut.id,
+        ratePercent: 1.5,
+        description: "1.5% on eating out",
+        monthlyCapPence: null,
+      },
+    ],
   });
 
   // Recurring expenses

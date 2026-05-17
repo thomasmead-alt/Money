@@ -3,8 +3,23 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { Card, Stat } from "@/components/Card";
 import { Money } from "@/components/Money";
+import type { AccountType } from "@/generated/prisma/enums";
 
 export const dynamic = "force-dynamic";
+
+const MANUAL_VALUATION_TYPES = new Set<AccountType>([
+  "INVESTMENT",
+  "PENSION",
+  "PROPERTY",
+  "VEHICLE",
+  "OTHER_ASSET",
+  "OTHER_LIABILITY",
+  "LOAN",
+]);
+
+function isManualValued(type: AccountType): boolean {
+  return MANUAL_VALUATION_TYPES.has(type);
+}
 
 export default async function AccountPage({
   params,
@@ -52,16 +67,36 @@ export default async function AccountPage({
           <h1 className="text-2xl font-semibold mt-1">{account.name}</h1>
           <p className="text-sm text-(--color-muted-foreground)">
             {account.institution ?? "—"} ·{" "}
-            {account.type.replace("_", " ").toLowerCase()} · {account.provider}
+            {account.type.replace(/_/g, " ").toLowerCase()} · {account.provider}
+            {account.lastValuedAt && (
+              <>
+                {" "}
+                · valued{" "}
+                {account.lastValuedAt.toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </>
+            )}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Link
-            href={`/accounts/${account.id}/import`}
-            className="btn-primary"
-          >
-            Import statement
-          </Link>
+          {isManualValued(account.type) ? (
+            <Link
+              href={`/accounts/${account.id}/revalue`}
+              className="btn-primary"
+            >
+              Revalue
+            </Link>
+          ) : (
+            <Link
+              href={`/accounts/${account.id}/import`}
+              className="btn-primary"
+            >
+              Import statement
+            </Link>
+          )}
           <Link
             href={`/accounts/${account.id}/transactions/new`}
             className="btn-secondary"

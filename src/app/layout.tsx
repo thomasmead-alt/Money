@@ -44,8 +44,10 @@ const NAV = [
   { href: "/forecast", label: "Forecast" },
   { href: "/trends", label: "Trends" },
   { href: "/credit-cards", label: "Credit cards" },
+  { href: "/rewards", label: "Rewards" },
   { href: "/mortgage", label: "Mortgage" },
   { href: "/tax", label: "Tax" },
+  { href: "/backup", label: "Backup" },
   { href: "/settings", label: "Settings" },
 ];
 
