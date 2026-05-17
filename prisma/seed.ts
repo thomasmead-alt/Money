@@ -53,6 +53,38 @@ async function main() {
   const holidays = await db.category.create({
     data: { name: "Holidays", kind: "EXPENSE", isSystem: true },
   });
+  const isaCat = await db.category.create({
+    data: {
+      name: "ISA contribution",
+      kind: "TRANSFER",
+      isSystem: true,
+      taxBucket: "ISA_CONTRIBUTION",
+    },
+  });
+  const pensionCat = await db.category.create({
+    data: {
+      name: "Pension contribution",
+      kind: "EXPENSE",
+      isSystem: true,
+      taxBucket: "PENSION_CONTRIBUTION",
+    },
+  });
+  const interestCat = await db.category.create({
+    data: {
+      name: "Savings interest",
+      kind: "INCOME",
+      isSystem: true,
+      taxBucket: "SAVINGS_INTEREST",
+    },
+  });
+  const dividendCat = await db.category.create({
+    data: {
+      name: "Dividends",
+      kind: "INCOME",
+      isSystem: true,
+      taxBucket: "DIVIDEND_INCOME",
+    },
+  });
 
   // Accounts
   const current = await db.account.create({
@@ -334,6 +366,89 @@ async function main() {
           date,
           amount: GBP(-(10 + Math.round(Math.random() * 50))),
           description: "AMAZON.CO.UK",
+        },
+      });
+    }
+    // Netflix subscription on the 14th (so the detector picks it up)
+    if (date.getDate() === 14) {
+      await db.transaction.create({
+        data: {
+          accountId: current.id,
+          date,
+          amount: GBP(-12.99),
+          description: "NETFLIX.COM",
+          merchant: "Netflix",
+          categoryId: subscriptions.id,
+        },
+      });
+    }
+    // Spotify on the 7th
+    if (date.getDate() === 7) {
+      await db.transaction.create({
+        data: {
+          accountId: current.id,
+          date,
+          amount: GBP(-11.99),
+          description: "SPOTIFY UK",
+          merchant: "Spotify",
+        },
+      });
+    }
+    // Monthly ISA contribution on the 26th — for the tax page
+    if (date.getDate() === 26) {
+      await db.transaction.create({
+        data: {
+          accountId: savings.id,
+          date,
+          amount: GBP(500),
+          description: "Transfer from current",
+          categoryId: isaCat.id,
+        },
+      });
+      await db.transaction.create({
+        data: {
+          accountId: current.id,
+          date,
+          amount: GBP(-500),
+          description: "Transfer to ISA",
+          categoryId: isaCat.id,
+        },
+      });
+    }
+    // Pension contribution (workplace, salary sacrifice equivalent)
+    if (date.getDate() === 25) {
+      await db.transaction.create({
+        data: {
+          accountId: current.id,
+          date,
+          amount: GBP(-345),
+          description: "Workplace pension contribution",
+          categoryId: pensionCat.id,
+        },
+      });
+    }
+    // Quarterly dividend
+    const isQuarterly = [1, 4, 7, 10].includes(date.getMonth() + 1);
+    if (isQuarterly && date.getDate() === 12) {
+      await db.transaction.create({
+        data: {
+          accountId: current.id,
+          date,
+          amount: GBP(85),
+          description: "Vanguard FTSE Global dividend",
+          categoryId: dividendCat.id,
+        },
+      });
+    }
+    // Monthly savings interest
+    if (date.getDate() === 1) {
+      await db.transaction.create({
+        data: {
+          accountId: savings.id,
+          date,
+          amount: GBP(35.5),
+          description: "Interest payment",
+          categoryId: interestCat.id,
         },
       });
     }

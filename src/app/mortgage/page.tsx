@@ -89,10 +89,10 @@ export default async function MortgagePage() {
             title={m.name}
             action={
               <Link
-                href={`/accounts/${m.id}/mortgage`}
+                href={`/mortgage/${m.id}`}
                 className="text-sm text-(--color-accent)"
               >
-                Edit details →
+                What-if calculator →
               </Link>
             }
           >

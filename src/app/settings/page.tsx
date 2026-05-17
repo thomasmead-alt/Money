@@ -4,6 +4,15 @@ import { Card } from "@/components/Card";
 
 export const dynamic = "force-dynamic";
 
+const TAX_BUCKETS = [
+  { value: "", label: "—" },
+  { value: "ISA_CONTRIBUTION", label: "ISA contribution" },
+  { value: "PENSION_CONTRIBUTION", label: "Pension contribution" },
+  { value: "DIVIDEND_INCOME", label: "Dividend income" },
+  { value: "SAVINGS_INTEREST", label: "Savings interest" },
+  { value: "TAXABLE_GAINS", label: "Taxable capital gain" },
+];
+
 export default async function SettingsPage() {
   const categories = await db.category.findMany({ orderBy: { name: "asc" } });
 
@@ -19,12 +28,27 @@ export default async function SettingsPage() {
     redirect("/settings");
   }
 
+  async function setTaxBucket(formData: FormData) {
+    "use server";
+    const id = String(formData.get("id") ?? "");
+    const bucket = String(formData.get("taxBucket") ?? "").trim() || null;
+    if (!id) return;
+    await db.category.update({
+      where: { id },
+      data: { taxBucket: bucket },
+    });
+    redirect("/settings");
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Settings</h1>
 
       <Card title="Categories">
-        <form action={createCategory} className="grid sm:grid-cols-4 gap-3 mb-4 text-sm">
+        <form
+          action={createCategory}
+          className="grid sm:grid-cols-4 gap-3 mb-6 text-sm"
+        >
           <input
             name="name"
             placeholder="Category name"
@@ -46,19 +70,49 @@ export default async function SettingsPage() {
             No categories yet.
           </p>
         ) : (
-          <ul className="divide-y divide-(--color-border) -my-2">
-            {categories.map((c) => (
-              <li
-                key={c.id}
-                className="py-2 flex items-center justify-between text-sm"
-              >
-                <span className="font-medium">{c.name}</span>
-                <span className="text-xs text-(--color-muted-foreground)">
-                  {c.kind.toLowerCase()}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto -mx-5">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-(--color-muted-foreground) uppercase tracking-wide">
+                <tr>
+                  <th className="px-5 py-2 font-medium">Name</th>
+                  <th className="px-5 py-2 font-medium">Kind</th>
+                  <th className="px-5 py-2 font-medium">Tax bucket</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-(--color-border)">
+                {categories.map((c) => (
+                  <tr key={c.id}>
+                    <td className="px-5 py-2 font-medium">{c.name}</td>
+                    <td className="px-5 py-2 text-(--color-muted-foreground)">
+                      {c.kind.toLowerCase()}
+                    </td>
+                    <td className="px-5 py-2">
+                      <form action={setTaxBucket} className="flex gap-2">
+                        <input type="hidden" name="id" value={c.id} />
+                        <select
+                          name="taxBucket"
+                          defaultValue={c.taxBucket ?? ""}
+                          className="input"
+                        >
+                          {TAX_BUCKETS.map((b) => (
+                            <option key={b.value} value={b.value}>
+                              {b.label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="submit"
+                          className="text-xs text-(--color-accent) hover:underline"
+                        >
+                          save
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
 

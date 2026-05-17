@@ -125,6 +125,7 @@ model Category {
   colour       String? // hex
   icon         String?
   isSystem     Boolean        @default(false)
+  taxBucket    String? // ISA_CONTRIBUTION | PENSION_CONTRIBUTION | DIVIDEND_INCOME | SAVINGS_INTEREST | TAXABLE_GAINS
   createdAt    DateTime       @default(now())
 
   parent       Category?      @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
