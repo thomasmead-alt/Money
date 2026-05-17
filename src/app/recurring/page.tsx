@@ -96,7 +96,7 @@ export default async function RecurringPage() {
           />
           <button
             type="submit"
-            className="sm:col-span-6 justify-self-end inline-flex items-center rounded-md bg-(--color-accent) text-(--color-accent-foreground) px-3 py-1.5 text-sm font-medium hover:opacity-90"
+            className="sm:col-span-6 justify-self-end btn-primary"
           >
             Add
           </button>
@@ -142,18 +142,6 @@ export default async function RecurringPage() {
           </ul>
         )}
       </Card>
-      <style>{`
-        .input {
-          display: block;
-          width: 100%;
-          border-radius: 0.5rem;
-          border: 1px solid var(--color-border);
-          background: var(--color-card);
-          padding: 0.5rem 0.75rem;
-          font-size: 0.875rem;
-          color: var(--color-foreground);
-        }
-      `}</style>
     </div>
   );
 }

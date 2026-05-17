@@ -42,9 +42,22 @@ export default async function MortgagePage() {
         const details = m.mortgageDetails;
         if (!details) {
           return (
-            <Card key={m.id} title={m.name}>
+            <Card
+              key={m.id}
+              title={m.name}
+              action={
+                <Link
+                  href={`/accounts/${m.id}/mortgage`}
+                  className="text-sm text-(--color-accent)"
+                >
+                  Configure →
+                </Link>
+              }
+            >
               <p className="text-sm text-(--color-muted-foreground)">
-                No mortgage details set up yet for this account.
+                No mortgage details set up yet — enter the principal, rate
+                and term to see the amortisation schedule and overpayment
+                what-if.
               </p>
             </Card>
           );
@@ -76,10 +89,10 @@ export default async function MortgagePage() {
             title={m.name}
             action={
               <Link
-                href={`/accounts/${m.id}`}
+                href={`/accounts/${m.id}/mortgage`}
                 className="text-sm text-(--color-accent)"
               >
-                Account details →
+                Edit details →
               </Link>
             }
           >

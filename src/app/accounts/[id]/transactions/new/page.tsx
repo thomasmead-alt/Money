@@ -126,27 +126,12 @@ export default async function NewTransactionPage({
             </div>
           </div>
           <div className="flex justify-end">
-            <button
-              type="submit"
-              className="inline-flex items-center rounded-md bg-(--color-accent) text-(--color-accent-foreground) px-4 py-2 text-sm font-medium hover:opacity-90"
-            >
+            <button type="submit" className="btn-primary">
               Save transaction
             </button>
           </div>
         </form>
       </Card>
-      <style>{`
-        .input {
-          display: block;
-          width: 100%;
-          border-radius: 0.5rem;
-          border: 1px solid var(--color-border);
-          background: var(--color-card);
-          padding: 0.5rem 0.75rem;
-          font-size: 0.875rem;
-          color: var(--color-foreground);
-        }
-      `}</style>
     </div>
   );
 }

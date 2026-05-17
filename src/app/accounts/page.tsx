@@ -29,10 +29,7 @@ export default async function AccountsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Accounts</h1>
-        <Link
-          href="/accounts/new"
-          className="inline-flex items-center rounded-md bg-(--color-accent) text-(--color-accent-foreground) px-3 py-1.5 text-sm font-medium hover:opacity-90"
-        >
+        <Link href="/accounts/new" className="btn-primary">
           Add account
         </Link>
       </div>

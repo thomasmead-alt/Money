@@ -36,10 +36,7 @@ export default async function SettingsPage() {
             <option value="INCOME">Income</option>
             <option value="TRANSFER">Transfer</option>
           </select>
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center rounded-md bg-(--color-accent) text-(--color-accent-foreground) px-3 py-1.5 text-sm font-medium hover:opacity-90"
-          >
+          <button type="submit" className="btn-primary">
             Add category
           </button>
         </form>
@@ -80,18 +77,6 @@ export default async function SettingsPage() {
           </p>
         </div>
       </Card>
-      <style>{`
-        .input {
-          display: block;
-          width: 100%;
-          border-radius: 0.5rem;
-          border: 1px solid var(--color-border);
-          background: var(--color-card);
-          padding: 0.5rem 0.75rem;
-          font-size: 0.875rem;
-          color: var(--color-foreground);
-        }
-      `}</style>
     </div>
   );
 }

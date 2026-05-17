@@ -53,6 +53,7 @@ model Account {
   mortgageDetails    MortgageDetails?
   balanceSnapshots   BalanceSnapshot[]
   importBatches      ImportBatch[]
+  goals              Goal[]
 
   @@index([type])
 }
@@ -384,6 +385,34 @@ model ImportBatch {
   transactions   Transaction[]
 
   @@index([accountId])
+}
+
+// =====================
+// Goals / sinking funds
+// =====================
+
+enum GoalKind {
+  SAVINGS_TARGET
+  SINKING_FUND
+  DEBT_PAYOFF
+}
+
+model Goal {
+  id                String   @id @default(cuid())
+  name              String
+  kind              GoalKind @default(SAVINGS_TARGET)
+  targetAmount      Int // pence
+  targetDate        DateTime?
+  currentAmount     Int      @default(0) // pence, snapshot
+  linkedAccountId   String?
+  monthlyContribution Int?  // pence, planned
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  linkedAccount     Account? @relation(fields: [linkedAccountId], references: [id], onDelete: SetNull)
+
+  @@index([targetDate])
 }
 
 // =====================

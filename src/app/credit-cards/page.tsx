@@ -58,7 +58,12 @@ export default async function CreditCardsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Credit cards</h1>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h1 className="text-2xl font-semibold">Credit cards</h1>
+        <Link href="/credit-cards/spread" className="btn-secondary">
+          Spread upcoming expenses →
+        </Link>
+      </div>
 
       <Card title="Your cards">
         {cards.length === 0 ? (

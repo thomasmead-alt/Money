@@ -15,7 +15,7 @@ export default async function AccountPage({
   const account = await db.account.findUnique({ where: { id } });
   if (!account) notFound();
 
-  const [transactions, importBatches, offerCount, recurringCount] =
+  const [transactions, importBatches, offers, recurringCount, mortgage] =
     await Promise.all([
       db.transaction.findMany({
         where: { accountId: id },
@@ -28,9 +28,16 @@ export default async function AccountPage({
         orderBy: { importedAt: "desc" },
         take: 5,
       }),
-      db.creditCardOffer.count({ where: { accountId: id, status: "ACTIVE" } }),
+      db.creditCardOffer.findMany({
+        where: { accountId: id, status: "ACTIVE" },
+        orderBy: { promoEndDate: "asc" },
+      }),
       db.recurringExpense.count({ where: { accountId: id, isActive: true } }),
+      account.type === "MORTGAGE"
+        ? db.mortgageDetails.findUnique({ where: { accountId: id } })
+        : Promise.resolve(null),
     ]);
+  const offerCount = offers.length;
 
   return (
     <div className="space-y-6">
@@ -48,19 +55,35 @@ export default async function AccountPage({
             {account.type.replace("_", " ").toLowerCase()} · {account.provider}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Link
             href={`/accounts/${account.id}/import`}
-            className="inline-flex items-center rounded-md bg-(--color-accent) text-(--color-accent-foreground) px-3 py-1.5 text-sm font-medium hover:opacity-90"
+            className="btn-primary"
           >
             Import statement
           </Link>
           <Link
             href={`/accounts/${account.id}/transactions/new`}
-            className="inline-flex items-center rounded-md border border-(--color-border) px-3 py-1.5 text-sm font-medium hover:bg-(--color-muted)"
+            className="btn-secondary"
           >
             Add transaction
           </Link>
+          {account.type === "CREDIT_CARD" && (
+            <Link
+              href={`/accounts/${account.id}/offers/new`}
+              className="btn-secondary"
+            >
+              Add offer
+            </Link>
+          )}
+          {account.type === "MORTGAGE" && (
+            <Link
+              href={`/accounts/${account.id}/mortgage`}
+              className="btn-secondary"
+            >
+              {mortgage ? "Edit mortgage details" : "Set up mortgage"}
+            </Link>
+          )}
         </div>
       </div>
 
@@ -96,6 +119,53 @@ export default async function AccountPage({
           </Card>
         )}
       </div>
+
+      {account.type === "CREDIT_CARD" && offers.length > 0 && (
+        <Card
+          title={`Active offers (${offers.length})`}
+          action={
+            <Link
+              href={`/accounts/${account.id}/offers/new`}
+              className="text-sm text-(--color-accent)"
+            >
+              Add another →
+            </Link>
+          }
+        >
+          <ul className="divide-y divide-(--color-border) -my-2">
+            {offers.map((o) => (
+              <li
+                key={o.id}
+                className="py-3 flex items-center justify-between gap-3"
+              >
+                <div>
+                  <div className="font-medium text-sm">
+                    {o.offerType.replace("_", " ").toLowerCase()}
+                    {o.description ? ` — ${o.description}` : ""}
+                  </div>
+                  <div className="text-xs text-(--color-muted-foreground)">
+                    <Money pence={o.amount} /> at {o.promoApr}% · reverts to{" "}
+                    {o.postPromoApr}%
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-medium">
+                    Ends{" "}
+                    {o.promoEndDate.toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </div>
+                  <div className="text-xs text-(--color-muted-foreground)">
+                    Fee {o.feePercent}%
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <Card title="Transactions">
         {transactions.length === 0 ? (

@@ -2,15 +2,15 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { Card, Stat } from "@/components/Card";
 import { Money } from "@/components/Money";
+import { AlertsPanel } from "@/components/AlertsPanel";
 import { computeClearSurplus } from "@/lib/finance/clearSurplus";
-import { formatGBP } from "@/lib/money";
+import { collectAlerts } from "@/lib/finance/alerts";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const now = new Date();
-  const sixtyDaysOut = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
-  const [accounts, surplus, recentTx, upcomingExpiry] = await Promise.all([
+  const [accounts, surplus, recentTx, alerts] = await Promise.all([
     db.account.findMany({
       where: { archivedAt: null },
       orderBy: [{ type: "asc" }, { name: "asc" }],
@@ -21,14 +21,7 @@ export default async function DashboardPage() {
       orderBy: { date: "desc" },
       include: { account: true, category: true },
     }),
-    db.creditCardOffer.findMany({
-      where: {
-        status: "ACTIVE",
-        promoEndDate: { lte: sixtyDaysOut, gte: now },
-      },
-      include: { account: true },
-      orderBy: { promoEndDate: "asc" },
-    }),
+    collectAlerts(now),
   ]);
 
   if (accounts.length === 0) {
@@ -89,46 +82,7 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {upcomingExpiry.length > 0 && (
-        <Card
-          title="Promo rates ending soon"
-          action={
-            <Link className="text-sm text-(--color-accent)" href="/credit-cards">
-              Manage
-            </Link>
-          }
-        >
-          <ul className="divide-y divide-(--color-border)">
-            {upcomingExpiry.map((offer) => (
-              <li
-                key={offer.id}
-                className="py-2 flex items-center justify-between"
-              >
-                <div>
-                  <div className="font-medium">{offer.account.name}</div>
-                  <div className="text-sm text-(--color-muted-foreground)">
-                    {offer.offerType.replace("_", " ").toLowerCase()} —{" "}
-                    {offer.description ?? "no description"}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-medium text-(--color-warning)">
-                    Ends{" "}
-                    {offer.promoEndDate.toLocaleDateString("en-GB", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </div>
-                  <div className="text-xs text-(--color-muted-foreground)">
-                    {formatGBP(offer.amount)} on promo
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+      <AlertsPanel alerts={alerts} />
 
       <div className="grid lg:grid-cols-2 gap-4">
         <Card
@@ -225,10 +179,7 @@ function EmptyState() {
         Add your first account — a current account, savings pot, credit card, or
         mortgage — and then import a statement to get going.
       </p>
-      <Link
-        href="/accounts/new"
-        className="inline-flex items-center justify-center rounded-md bg-(--color-accent) text-(--color-accent-foreground) px-4 py-2 text-sm font-medium hover:opacity-90"
-      >
+      <Link href="/accounts/new" className="btn-primary">
         Add an account
       </Link>
     </div>
